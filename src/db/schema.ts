@@ -238,6 +238,12 @@ export const mediaAssets = pgTable("media_assets", {
   mediaType: text("media_type", { enum: mediaTypes }).notNull(),
   mediaRole: text("media_role", { enum: mediaRoles }).notNull(),
   fileUrl: text("file_url").notNull(),
+  /**
+   * Object key di object storage (mis. "uploads/<uuid>.jpg"). Null untuk
+   * data pra-R2 (URL lokal `/uploads/...`). URL publik selalu dibentuk dari
+   * konfigurasi delivery + key ini (dokumen §8.2.1).
+   */
+  storageKey: text("storage_key"),
   thumbnailUrl: text("thumbnail_url"),
   // Nama ramah untuk operator (R25b): tampil di pustaka & pemilih media;
   // kosong = jatuh kembali ke nama berkas. Tidak pernah dipakai di situs.

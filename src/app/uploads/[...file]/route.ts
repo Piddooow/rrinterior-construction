@@ -2,6 +2,10 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { eq } from "drizzle-orm";
+import { db } from "@/db";
+import { mediaAssets } from "@/db/schema";
+import { isR2Configured } from "@/lib/r2";
 
 /**
  * Penyaji berkas unggahan runtime.
@@ -40,6 +44,20 @@ export async function GET(
   const match = /^[A-Za-z0-9-]+\.(jpg|jpeg|png|webp|mp4)$/.exec(name);
   if (!match) {
     return new Response("Not found", { status: 404 });
+  }
+
+  // Setelah migrasi R2, URL lama diarahkan permanen ke object storage
+  // (dokumen §8.5.5). Selama belum dimigrasi, berkas lokal tetap dilayani.
+  if (isR2Configured()) {
+    const migrated = await db
+      .select({ fileUrl: mediaAssets.fileUrl })
+      .from(mediaAssets)
+      .where(eq(mediaAssets.storageKey, `uploads/${name}`))
+      .limit(1);
+    const target = migrated[0]?.fileUrl;
+    if (target && target.startsWith("http")) {
+      return Response.redirect(target, 301);
+    }
   }
 
   const dir = path.resolve(UPLOAD_DIR());

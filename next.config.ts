@@ -36,14 +36,39 @@ const scriptSrc = isProd
   ? "script-src 'self' 'unsafe-inline'"
   : "script-src 'self' 'unsafe-inline' 'unsafe-eval'";
 
+/*
+ * Origin object storage (R2). Selama environment belum diisi, daftar kosong
+ * dan kebijakan tetap persis seperti sebelumnya. Begitu R2 dikonfigurasi:
+ * - domain publik delivery masuk img-src/media-src + remotePatterns next/image;
+ * - endpoint S3 masuk connect-src (tujuan PUT presigned dari browser).
+ */
+const r2Public = (() => {
+  const raw = process.env.R2_PUBLIC_BASE_URL?.trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return {
+      origin: url.origin,
+      protocol: url.protocol === "http:" ? ("http" as const) : ("https" as const),
+      hostname: url.hostname,
+      port: url.port,
+    };
+  } catch {
+    return null;
+  }
+})();
+const r2S3Origin = process.env.R2_ACCOUNT_ID?.trim()
+  ? `https://${process.env.R2_ACCOUNT_ID.trim()}.r2.cloudflarestorage.com`
+  : null;
+
 const CSP = [
   "default-src 'self'",
   scriptSrc,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob:${r2Public ? ` ${r2Public.origin}` : ""}`,
   "font-src 'self' data:",
-  "media-src 'self' blob:",
-  "connect-src 'self'",
+  `media-src 'self' blob:${r2Public ? ` ${r2Public.origin}` : ""}`,
+  `connect-src 'self'${r2S3Origin ? ` ${r2S3Origin}` : ""}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -71,6 +96,20 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // better-sqlite3 adalah modul native; jangan di-bundle oleh Turbopack.
   serverExternalPackages: ["better-sqlite3"],
+  // Gambar dari domain delivery R2 (dokumen §8.6.4) — hanya bila dikonfigurasi.
+  ...(r2Public
+    ? {
+        images: {
+          remotePatterns: [
+            {
+              protocol: r2Public.protocol,
+              hostname: r2Public.hostname,
+              ...(r2Public.port ? { port: r2Public.port } : {}),
+            },
+          ],
+        },
+      }
+    : {}),
   /*
    * Unggahan media lewat Server Action: batas bawaan 1MB terlalu kecil untuk
    * berkas foto/video (validasi jenis & ukuran sebenarnya ada di

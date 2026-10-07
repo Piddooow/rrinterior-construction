@@ -14,9 +14,14 @@
     "db:verify": "node --env-file-if-exists=.env.local scripts/verify-import.mts",
     "db:backup": "node scripts/backup.mts",
     "db:restore": "node scripts/restore.mts",
-    "db:user": "node --env-file-if-exists=.env.local --import tsx scripts/create-user.mts"
+    "db:user": "node --env-file-if-exists=.env.local --import tsx scripts/create-user.mts",
+    "r2:setup": "node --env-file-if-exists=.env.local scripts/r2-setup.mts",
+    "db:migrate-media": "node --env-file-if-exists=.env.local scripts/migrate-media-to-r2.mts",
+    "db:media-cleanup": "node --env-file-if-exists=.env.local scripts/media-cleanup.mts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1147.0",
+    "@aws-sdk/s3-request-presigner": "^3.1147.0",
     "@gsap/react": "^2.1.2",
     "better-sqlite3": "^13.0.3",
     "cn": "^0.4.0",

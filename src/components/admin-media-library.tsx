@@ -1,7 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useEffect, useId, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  useActionState,
+  useEffect,
+  useId,
+  useState,
+  type FormEvent,
+} from "react";
 import { AdminSelect } from "@/components/ui/admin-select";
 import { ConfirmButton } from "@/components/admin-confirm";
 import { showAdminToast } from "@/components/admin-toast";
@@ -418,16 +425,24 @@ function FilterGroup({
 }
 
 /**
- * Panel unggah nyata. Berkas dikirim ke Server Action; validasi jenis & ukuran
- * ada di server (JPG/PNG/WebP maks 10MB, MP4 maks 100MB). Nama penyimpanan
- * dibuat server — nama dari pengguna tidak pernah dipakai.
+ * Panel unggah dua mode. Storage aktif (R2): minta otorisasi ke server →
+ * PUT langsung ke storage lewat presigned URL (dengan progres) → server
+ * memverifikasi objek sebelum media masuk pustaka. Selama storage belum
+ * dikonfigurasi, server menjawab "server" dan form jatuh ke jalur lama
+ * (unggah lewat Server Action — validasi tetap di server, JPG/PNG/WebP
+ * maks 10MB, MP4 maks 100MB; nama penyimpanan selalu dibuat server).
  */
 function UploadPanel() {
   const [state, formAction, pending] = useActionState<UploadState, FormData>(
     uploadMediaAction,
     {}
   );
+  const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileId = useId();
+  const router = useRouter();
+  const uploading = busy || pending;
 
   // Hasil selalu berakhir di popup (R29): sukses maupun galat — pesan galat
   // tetap tampil inline di bawah form untuk konteks.
@@ -435,6 +450,97 @@ function UploadPanel() {
     if (state.ok) showAdminToast("success", state.ok);
     if (state.error) showAdminToast("error", state.error);
   }, [state]);
+
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const file = data.get("file");
+    if (!(file instanceof File) || file.size === 0) {
+      setError("Pilih berkas foto atau video dulu.");
+      return;
+    }
+    setError(null);
+
+    // 1) Otorisasi di server: sesi, jenis, ukuran, tujuan (§8.3.1).
+    let presign: {
+      mode?: string;
+      mediaId?: string;
+      uploadUrl?: string;
+      maxBytes?: number;
+      error?: string;
+    };
+    try {
+      const res = await fetch("/api/admin/media/presign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          mimeType: file.type,
+          size: file.size,
+          mediaRole: data.get("mediaRole"),
+          altTextEn: data.get("altTextEn"),
+          altTextId: data.get("altTextId"),
+          credit: data.get("credit"),
+          consentConfirmed: data.get("consent") === "on",
+        }),
+      });
+      presign = await res.json();
+      if (!res.ok) {
+        throw new Error(presign.error ?? "Gagal menyiapkan upload.");
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Gagal menyiapkan upload.";
+      setError(message);
+      showAdminToast("error", message);
+      return;
+    }
+
+    // 2) Cek ukuran terhadap batas mode aktif (transisi: batas platform).
+    const maxBytes =
+      typeof presign.maxBytes === "number" ? presign.maxBytes : Infinity;
+    if (file.size > maxBytes) {
+      const message = `Ukuran berkas melebihi batas ${Math.round((maxBytes / (1024 * 1024)) * 10) / 10} MB.`;
+      setError(message);
+      showAdminToast("error", message);
+      return;
+    }
+
+    // 3) Storage belum dikonfigurasi → jalur lama (Server Action).
+    if (presign.mode === "server" || !presign.uploadUrl || !presign.mediaId) {
+      formAction(data);
+      return;
+    }
+
+    // 4) PUT langsung ke storage + progres, lalu verifikasi server.
+    try {
+      setBusy(true);
+      setProgress(0);
+      await putToStorage(presign.uploadUrl, file, setProgress);
+      setProgress(100);
+      const res = await fetch("/api/admin/media/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mediaId: presign.mediaId }),
+      });
+      const result = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || !result.ok) {
+        throw new Error(result.error ?? "Verifikasi upload gagal.");
+      }
+      showAdminToast("success", `"${file.name}" tersimpan.`);
+      const input = form.elements.namedItem("file");
+      if (input instanceof HTMLInputElement) input.value = "";
+      router.refresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload gagal.";
+      setError(message);
+      showAdminToast("error", message);
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  }
 
   return (
     <section
@@ -450,7 +556,7 @@ function UploadPanel() {
         </span>
       </div>
 
-      <form action={formAction} className="mt-4 flex flex-col gap-4">
+      <form action={formAction} onSubmit={onSubmit} className="mt-4 flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
             <label htmlFor={fileId} className={labelClass}>
@@ -527,18 +633,46 @@ function UploadPanel() {
         <div className="flex flex-wrap items-center gap-4">
           <button
             type="submit"
-            disabled={pending}
+            disabled={uploading}
             className="btn btn-primary disabled:cursor-wait disabled:opacity-70"
           >
-            {pending ? "Mengunggah…" : "Unggah"}
+            {uploading
+              ? progress !== null
+                ? `Mengunggah… ${progress}%`
+                : "Mengunggah…"
+              : "Unggah"}
           </button>
           <p className="text-xs leading-relaxed text-ink-3">
             Tanpa centang izin tayang, media tersimpan di pustaka tetapi tidak
             pernah tampil di situs sampai disetujui.
           </p>
         </div>
+
+        {progress !== null ? (
+          <div
+            role="progressbar"
+            aria-label="Progres unggah"
+            aria-valuenow={progress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="h-1.5 w-full overflow-hidden rounded-full bg-subtle"
+          >
+            <div
+              className="h-full rounded-full bg-[var(--color-primary)] transition-[width] duration-200"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        ) : null}
       </form>
 
+      {error ? (
+        <p
+          role="alert"
+          className="mt-4 rounded-md border border-line bg-canvas px-4 py-3 text-sm text-ink"
+        >
+          {error}
+        </p>
+      ) : null}
       {state.error ? (
         <p
           role="alert"
@@ -549,4 +683,31 @@ function UploadPanel() {
       ) : null}
     </section>
   );
+}
+
+/**
+ * PUT berkas ke presigned URL dengan progres. XHR dipakai karena `fetch`
+ * tidak menyediakan progres unggah. Content-Type dikunci ke jenis berkas.
+ */
+function putToStorage(
+  url: string,
+  file: File,
+  onProgress: (percent: number) => void
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload ke storage gagal (HTTP ${xhr.status}).`));
+    };
+    xhr.onerror = () => reject(new Error("Koneksi ke storage terputus."));
+    xhr.send(file);
+  });
 }
