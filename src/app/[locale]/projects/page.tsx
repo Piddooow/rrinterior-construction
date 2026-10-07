@@ -10,6 +10,8 @@ import { applySiteSettings } from "@/lib/settings";
 import { slugify } from "@/lib/utils";
 import { SITE } from "@/lib/site";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 import ParallaxStripSlider from "@/components/ui/parallax-strip-slider";
 import {
   ProjectsExplorer,
@@ -161,6 +163,21 @@ export default async function ProjectsPage({
             { label: dict.directory.title },
           ]}
           className="mb-6"
+        />
+        <JsonLd
+          data={[
+            pageJsonLd({
+              locale,
+              path: "/projects",
+              name: dict.directory.title,
+              description: dict.directory.metaDescription,
+              type: "CollectionPage",
+            }),
+            breadcrumbJsonLd([
+              { name: dict.breadcrumb.home, path: `/${locale}` },
+              { name: dict.directory.title, path: `/${locale}/projects` },
+            ]),
+          ]}
         />
         <h1
           data-reveal

@@ -11,6 +11,8 @@ import {
 import { pickLocalized } from "@/lib/view-models";
 import { applySiteSettings } from "@/lib/settings";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 import { ServiceGrid } from "@/components/service-grid";
 import { ProcessSection } from "@/components/process-section";
 import { TestimonialsFaq } from "@/components/testimonials-faq";
@@ -111,6 +113,20 @@ export default async function ServicesPage({
             { label: dict.servicesPage.title },
           ]}
           className="mb-6"
+        />
+        <JsonLd
+          data={[
+            pageJsonLd({
+              locale,
+              path: "/services",
+              name: dict.servicesPage.title,
+              description: dict.servicesPage.metaDescription,
+            }),
+            breadcrumbJsonLd([
+              { name: dict.breadcrumb.home, path: `/${locale}` },
+              { name: dict.servicesPage.title, path: `/${locale}/services` },
+            ]),
+          ]}
         />
         <div data-reveal className="max-w-2xl">
           <h1 className="font-display text-balance text-4xl leading-tight sm:text-5xl">

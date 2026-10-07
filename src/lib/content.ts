@@ -31,6 +31,8 @@ export type PublicProject = {
   yearCompleted: number | null;
   /** Waktu data dibuat — dipakai beranda untuk urutan terbaru → terlama. */
   createdAt: Date | null;
+  /** Waktu suntingan terakhir — dipakai peta situs (lastModified). */
+  updatedAt: Date | null;
   cover: {
     url: string;
     role: "render" | "foto_lapangan" | null;
@@ -57,6 +59,7 @@ export type PublicStaticPage = {
   slug: string;
   title: LocalizedText;
   body: LocalizedText;
+  updatedAt: Date | null;
 };
 
 export type PublicService = {
@@ -64,6 +67,7 @@ export type PublicService = {
   slug: string;
   title: LocalizedText;
   description: LocalizedText;
+  updatedAt: Date | null;
 };
 
 export type PublicProcessStep = {
@@ -88,6 +92,7 @@ export type PublicChannel = {
 export type PublicQuestion = {
   question: LocalizedText;
   answer: LocalizedText;
+  updatedAt: Date | null;
 };
 
 /** Testimoni dengan izin & identitas yang disetujui. */
@@ -132,6 +137,7 @@ function toPublicProject(row: Project): PublicProject {
     projectStatus: row.projectStatus,
     yearCompleted: row.yearCompleted,
     createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
     cover: row.coverUrl
       ? {
           url: row.coverUrl,
@@ -376,6 +382,7 @@ export async function getPublishedServices(): Promise<PublicService[]> {
       slug: row.slug,
       title: { en: row.titleEn, id: row.titleId },
       description: { en: row.descriptionEn, id: row.descriptionId },
+      updatedAt: row.updatedAt,
     }));
   } catch (error) {
     console.error("getPublishedServices gagal:", error);
@@ -485,6 +492,7 @@ export async function getPublishedQuestions(): Promise<PublicQuestion[]> {
     return rows.map((row) => ({
       question: { en: row.questionEn, id: row.questionId },
       answer: { en: row.answerEn, id: row.answerId },
+      updatedAt: row.updatedAt,
     }));
   } catch (error) {
     console.error("getPublishedQuestions gagal:", error);
@@ -556,6 +564,7 @@ export async function getPublishedStaticPages(): Promise<PublicStaticPage[]> {
       slug: row.slug,
       title: { en: row.titleEn, id: row.titleId },
       body: { en: row.bodyEn, id: row.bodyId },
+      updatedAt: row.updatedAt,
     }));
   } catch (error) {
     console.error("getPublishedStaticPages gagal:", error);
@@ -586,6 +595,7 @@ export async function getPublishedStaticPageBySlug(
       slug: row.slug,
       title: { en: row.titleEn, id: row.titleId },
       body: { en: row.bodyEn, id: row.bodyId },
+      updatedAt: row.updatedAt,
     };
   } catch (error) {
     console.error("getPublishedStaticPageBySlug gagal:", error);

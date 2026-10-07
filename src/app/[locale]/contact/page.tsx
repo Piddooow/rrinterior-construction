@@ -6,6 +6,8 @@ import { getPublicSettings } from "@/lib/content";
 import { channels } from "@/lib/mock";
 import { applySiteSettings } from "@/lib/settings";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 
 export const revalidate = 300;
@@ -72,6 +74,20 @@ export default async function ContactPage({
             { label: dict.contactPage.title },
           ]}
           className="mb-6"
+        />
+        <JsonLd
+          data={[
+            pageJsonLd({
+              locale,
+              path: "/contact",
+              name: dict.contactPage.title,
+              description: dict.contactPage.metaDescription,
+            }),
+            breadcrumbJsonLd([
+              { name: dict.breadcrumb.home, path: `/${locale}` },
+              { name: dict.contactPage.title, path: `/${locale}/contact` },
+            ]),
+          ]}
         />
         <div data-reveal className="max-w-2xl">
           <h1 className="font-display text-balance text-4xl leading-tight sm:text-5xl">

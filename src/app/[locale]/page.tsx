@@ -9,7 +9,9 @@ import {
 import { pickLocalized, toProjectCard } from "@/lib/view-models";
 import { sampleGallery } from "@/lib/sample-gallery";
 import { applySiteSettings } from "@/lib/settings";
+import { pageJsonLd } from "@/lib/seo";
 import { SITE, waHref } from "@/lib/site";
+import { JsonLd } from "@/components/json-ld";
 import { ArrowIcon } from "@/components/ui/arrow-icon";
 import { WorkStrip } from "@/components/work-strip";
 import { ProjectCard } from "@/components/project-card";
@@ -148,6 +150,14 @@ export default async function HomePage({
 
   return (
     <>
+      <JsonLd
+        data={pageJsonLd({
+          locale,
+          path: "",
+          name: dict.meta.title,
+          description: dict.meta.description,
+        })}
+      />
       {/* Identitas dan perkenalan */}
       <section data-hero className="shell pb-16 pt-14 sm:pt-20 lg:pb-24">
         <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch lg:gap-14">

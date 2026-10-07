@@ -5,6 +5,8 @@ import { getPublicSettings } from "@/lib/content";
 import { applySiteSettings } from "@/lib/settings";
 import { SITE, waHref } from "@/lib/site";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { MediaImage } from "@/components/ui/media-image";
 import { DirectionalLink } from "@/components/ui/directional-link";
@@ -57,6 +59,20 @@ export default async function AboutPage({
             { label: dict.aboutPage.title },
           ]}
           className="mb-6"
+        />
+        <JsonLd
+          data={[
+            pageJsonLd({
+              locale,
+              path: "/about",
+              name: dict.aboutPage.title,
+              description: dict.aboutPage.metaDescription,
+            }),
+            breadcrumbJsonLd([
+              { name: dict.breadcrumb.home, path: `/${locale}` },
+              { name: dict.aboutPage.title, path: `/${locale}/about` },
+            ]),
+          ]}
         />
         <div data-reveal className="max-w-2xl">
           <h1 className="font-display text-balance text-4xl leading-tight sm:text-5xl">

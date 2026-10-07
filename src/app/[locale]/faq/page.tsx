@@ -5,6 +5,8 @@ import { getPublishedQuestions, getPublicSettings } from "@/lib/content";
 import { pickLocalized } from "@/lib/view-models";
 import { applySiteSettings } from "@/lib/settings";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 import { Accordion } from "@/components/ui/accordion";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 
@@ -65,6 +67,20 @@ export default async function FaqPage({
             { label: dict.faqPage.title },
           ]}
           className="mb-6"
+        />
+        <JsonLd
+          data={[
+            pageJsonLd({
+              locale,
+              path: "/faq",
+              name: dict.faqPage.title,
+              description: dict.faqPage.metaDescription,
+            }),
+            breadcrumbJsonLd([
+              { name: dict.breadcrumb.home, path: `/${locale}` },
+              { name: dict.faqPage.title, path: `/${locale}/faq` },
+            ]),
+          ]}
         />
         <div data-reveal className="max-w-2xl">
           <h1 className="font-display text-balance text-4xl leading-tight sm:text-5xl">

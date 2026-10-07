@@ -19,6 +19,8 @@ import {
   getPublishedProjects,
   getPublishedServices,
 } from "@/lib/content";
+import { JsonLd } from "@/components/json-ld";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 import { applySiteSettings } from "@/lib/settings";
 
 const geist = Geist({
@@ -143,6 +145,7 @@ export default async function LocaleLayout({
           {children}
         </main>
         <SiteFooter locale={locale as Locale} dict={dict} />
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <PageTransition />
       </body>
     </html>

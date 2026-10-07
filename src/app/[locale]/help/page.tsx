@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { defaultLocale, getDictionary, isLocale } from "@/i18n";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 
 export const revalidate = 300;
 
@@ -48,6 +50,20 @@ export default async function HelpPage({
           { label: copy.title },
         ]}
         className="mb-6"
+      />
+      <JsonLd
+        data={[
+          pageJsonLd({
+            locale,
+            path: "/help",
+            name: copy.title,
+            description: dict.helpPage.metaDescription,
+          }),
+          breadcrumbJsonLd([
+            { name: dict.breadcrumb.home, path: `/${locale}` },
+            { name: copy.title, path: `/${locale}/help` },
+          ]),
+        ]}
       />
 
       <div data-reveal className="max-w-2xl">

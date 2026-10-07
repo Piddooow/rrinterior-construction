@@ -12,6 +12,8 @@ import { ArrowIcon } from "@/components/ui/arrow-icon";
 import { ArchivePostButton } from "@/components/archive-post-button";
 import { pickLocalized } from "@/lib/view-models";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 import { MediaImage } from "@/components/ui/media-image";
 import { DirectionalLink } from "@/components/ui/directional-link";
 
@@ -76,6 +78,20 @@ export default async function GalleryPage({
           { label: dict.gallery.title },
         ]}
         className="mb-6"
+      />
+      <JsonLd
+        data={[
+          pageJsonLd({
+            locale,
+            path: "/gallery",
+            name: dict.gallery.title,
+            description: dict.gallery.metaDescription,
+          }),
+          breadcrumbJsonLd([
+            { name: dict.breadcrumb.home, path: `/${locale}` },
+            { name: dict.gallery.title, path: `/${locale}/gallery` },
+          ]),
+        ]}
       />
       <h1
         data-reveal

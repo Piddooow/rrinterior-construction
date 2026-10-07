@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { defaultLocale, getDictionary, isLocale } from "@/i18n";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, pageJsonLd } from "@/lib/seo";
 import { ScrollSpine } from "@/components/ui/scroll-spine";
 
 /** Id bagian privasi: dipakai rel "Di halaman ini" dan tautan masa depan. */
@@ -51,6 +53,20 @@ export default async function PrivacyPage({
             { label: dict.privacyPage.title },
           ]}
           className="mb-6"
+        />
+        <JsonLd
+          data={[
+            pageJsonLd({
+              locale,
+              path: "/privacy",
+              name: dict.privacyPage.title,
+              description: dict.privacyPage.metaDescription,
+            }),
+            breadcrumbJsonLd([
+              { name: dict.breadcrumb.home, path: `/${locale}` },
+              { name: dict.privacyPage.title, path: `/${locale}/privacy` },
+            ]),
+          ]}
         />
         <div data-reveal className="max-w-2xl">
           <h1 className="font-display text-balance text-4xl leading-tight sm:text-5xl">

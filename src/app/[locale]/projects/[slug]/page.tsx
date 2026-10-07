@@ -12,6 +12,8 @@ import { MediaImage } from "@/components/ui/media-image";
 import { DirectionalLink } from "@/components/ui/directional-link";
 import { ArrowIcon } from "@/components/ui/arrow-icon";
 import { Breadcrumbs } from "@/components/breadcrumbs";
+import { JsonLd } from "@/components/json-ld";
+import { breadcrumbJsonLd, projectJsonLd } from "@/lib/seo";
 import { ShareProjectButton } from "@/components/share-project-button";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { BrandLogo } from "@/components/brand-mark";
@@ -108,6 +110,27 @@ export default async function ProjectDetailPage({
             { label: card.title },
           ]}
           className="mb-4"
+        />
+        <JsonLd
+          data={[
+            projectJsonLd({
+              locale,
+              slug: project.slug,
+              name: card.title,
+              description: summary || null,
+              image: project.cover?.url ?? null,
+              year: project.yearCompleted,
+              location: card.location || null,
+            }),
+            breadcrumbJsonLd([
+              { name: dict.breadcrumb.home, path: `/${locale}` },
+              { name: dict.directory.title, path: `/${locale}/projects` },
+              {
+                name: card.title,
+                path: `/${locale}/projects/${project.slug}`,
+              },
+            ]),
+          ]}
         />
         <Link
           href={`/${locale}/projects`}
