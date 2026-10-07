@@ -1,0 +1,69 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+/.next-build/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Arsip media lokal (binary besar) — sumber mentah, tidak untuk repositori
+data-foto/
+
+# Berkas kerja internal (pengujian & alat bantu agen) — cukup di lokal
+audits/
+laporan-hasil-pengujian.md
+laporan-qa-menyeluruh.md
+kendala-dan-tindakan.md
+panduan-cadangan-dan-pemulihan.md
+testing-rrweb.md
+.ngodingpakeai/
+.ngodingpakeaiignore
+.agent/
+.claude/
+.codex/
+.cursor/
+AGENTS.md
+
+# Database lokal (SQLite): snapshot konten ikut di-commit (TANPA akun/sesi —
+# dibuat ulang saat deploy lewat scripts/create-user.mts); berkas WAL/SHM
+# tidak pernah ikut.
+data/*
+!data/rr.db
+
+# Cadangan basis data (snapshot lokal, jangan masuk repositori)
+backups/

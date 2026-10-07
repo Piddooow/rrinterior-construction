@@ -1,0 +1,20 @@
+CREATE TABLE `media_assets` (
+	`id` text PRIMARY KEY NOT NULL,
+	`media_type` text NOT NULL,
+	`media_role` text NOT NULL,
+	`file_url` text NOT NULL,
+	`thumbnail_url` text,
+	`alt_text_id` text,
+	`alt_text_en` text,
+	`caption_id` text,
+	`caption_en` text,
+	`credit` text,
+	`consent_confirmed` integer DEFAULT false NOT NULL,
+	`mime_type` text,
+	`file_size` integer,
+	`upload_status` text DEFAULT 'diproses' NOT NULL,
+	`uploaded_by` text,
+	`created_at` integer DEFAULT (unixepoch()) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch()) NOT NULL,
+	`deleted_at` integer
+);
