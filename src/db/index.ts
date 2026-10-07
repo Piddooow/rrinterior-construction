@@ -1,20 +1,47 @@
-import { mkdirSync } from "node:fs";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "./schema";
+
+/**
+ * Koneksi database aplikasi (PostgreSQL/Neon, driver `pg`).
+ *
+ * - Pool kecil untuk satu instance Node (dokumen arsitektur §5.1.4).
+ * - URL runtime memakai koneksi POOLED dari Neon (sslmode=require sudah
+ *   ada di connection string sehingga TLS aktif tanpa konfigurasi tambahan).
+ * - Lazy: koneksi baru dibuat saat query pertama, bukan saat import —
+ *   supaya build/preview tanpa environment tetap aman.
+ */
 
 type Db = ReturnType<typeof createClient>;
 
 function createClient() {
-  mkdirSync("data", { recursive: true });
-  const sqlite = new Database(process.env.DATABASE_URL ?? "./data/rr.db");
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  return drizzle(sqlite, { schema });
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL belum diisi — isi environment server (lihat README)."
+    );
+  }
+  const pool = new Pool({
+    connectionString,
+    max: 5,
+    idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 10_000,
+  });
+  return drizzle(pool, { schema });
 }
 
 const globalForDb = globalThis as unknown as { __rrDb?: Db };
 
-/** Satu koneksi dipakai ulang saat dev (hindari koneksi ganda saat HMR). */
-export const db = globalForDb.__rrDb ?? createClient();
-if (process.env.NODE_ENV !== "production") globalForDb.__rrDb = db;
+function getClient(): Db {
+  if (!globalForDb.__rrDb) globalForDb.__rrDb = createClient();
+  return globalForDb.__rrDb;
+}
+
+/** Satu pool dipakai ulang (aman untuk HMR dev); akses lazy via proxy. */
+export const db = new Proxy({} as Db, {
+  get(_target, prop) {
+    const client = getClient() as unknown as Record<PropertyKey, unknown>;
+    const value = client[prop];
+    return typeof value === "function" ? value.bind(client) : value;
+  },
+});

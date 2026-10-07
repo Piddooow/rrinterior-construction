@@ -1,0 +1,90 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1790920621470,
+      "tag": "0000_services_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790920768619,
+      "tag": "0001_process_steps_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790920850923,
+      "tag": "0002_site_settings_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1790920959984,
+      "tag": "0003_projects_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1790931343067,
+      "tag": "0004_content_revisions_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1790931447612,
+      "tag": "0005_media_assets_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790931691791,
+      "tag": "0006_project_media_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1790937935401,
+      "tag": "0007_testimonials_faqs_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1790940919030,
+      "tag": "0008_static_pages_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790942464566,
+      "tag": "0009_users_sessions_init",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1790952986994,
+      "tag": "0010_projects_source_post",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1791351632746,
+      "tag": "0011_media_name",
+      "breakpoints": true
+    }
+  ]
+}

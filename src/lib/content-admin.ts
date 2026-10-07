@@ -266,7 +266,7 @@ export async function listContentRevisions(
         eq(contentRevisions.entityId, entityId)
       )
     )
-    .orderBy(desc(contentRevisions.createdAt), sql`rowid desc`);
+    .orderBy(desc(contentRevisions.createdAt), desc(contentRevisions.id));
 }
 
 /** Semua halaman teks untuk pengelolaan (semua status, kecuali terhapus). */
@@ -837,7 +837,7 @@ export async function trashMediaAsset(id: string): Promise<void> {
     .update(mediaAssets)
     .set({ deletedAt: new Date(), updatedAt: new Date() })
     .where(and(eq(mediaAssets.id, id), isNull(mediaAssets.deletedAt)));
-  if ((result.changes ?? 0) === 0) {
+  if ((result.rowCount ?? 0) === 0) {
     throw new Error("Media tidak ditemukan atau sudah di Trash.");
   }
 }
@@ -848,7 +848,7 @@ export async function restoreMediaAsset(id: string): Promise<void> {
     .update(mediaAssets)
     .set({ deletedAt: null, updatedAt: new Date() })
     .where(and(eq(mediaAssets.id, id), isNotNull(mediaAssets.deletedAt)));
-  if ((result.changes ?? 0) === 0) {
+  if ((result.rowCount ?? 0) === 0) {
     throw new Error("Media tidak ditemukan di Trash.");
   }
 }
@@ -1207,7 +1207,7 @@ export async function listMediaForAdmin(): Promise<MediaAsset[]> {
     .select()
     .from(mediaAssets)
     .where(isNull(mediaAssets.deletedAt))
-    .orderBy(desc(mediaAssets.createdAt), sql`rowid desc`);
+    .orderBy(desc(mediaAssets.createdAt), desc(mediaAssets.id));
 }
 
 export async function getMediaAssetById(
@@ -1421,7 +1421,7 @@ export async function detachProjectMedia(
         eq(projectMedia.mediaId, mediaId)
       )
     );
-  if ((result.changes ?? 0) === 0) {
+  if ((result.rowCount ?? 0) === 0) {
     throw new Error("Media tidak ditemukan di galeri proyek ini.");
   }
 }

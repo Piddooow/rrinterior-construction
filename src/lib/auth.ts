@@ -227,5 +227,5 @@ export async function destroySession(token: string): Promise<void> {
 /** Bersihkan sesi kedaluwarsa; mengembalikan jumlah baris terhapus. */
 export async function cleanupExpiredSessions(): Promise<number> {
   const result = await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
-  return result.changes ?? 0;
+  return result.rowCount ?? 0;
 }

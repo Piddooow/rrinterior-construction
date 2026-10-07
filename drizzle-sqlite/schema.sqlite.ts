@@ -1,21 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  boolean,
-  check,
-  index,
-  integer,
-  jsonb,
-  pgTable,
-  text,
-  timestamp,
-} from "drizzle-orm/pg-core";
-
-/**
- * Skema aktif: PostgreSQL (Neon). Pengganti skema SQLite (arsip di
- * `drizzle-sqlite/schema.sqlite.ts`). Pemetaan: waktu `timestamptz`,
- * boolean asli, JSON `jsonb`, enum sebagai text + check, unique index
- * tetap sama. Lihat dokumen audit Fase 0 untuk alasan tiap transformasi.
- */
+import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /** Status konten sesuai PRD: publik hanya membaca "published". */
 export const contentStatuses = ["draft", "published", "trashed"] as const;
@@ -42,14 +26,14 @@ function contentColumns() {
     contentStatus: text("content_status", { enum: contentStatuses })
       .notNull()
       .default("draft"),
-    publishedAt: timestamp("published_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    publishedAt: integer("published_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
-    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+      .default(sql`(unixepoch())`),
+    deletedAt: integer("deleted_at", { mode: "timestamp" }),
   };
 }
 
@@ -57,18 +41,18 @@ function contentColumns() {
  * Akun tim RR untuk panel admin (PRD §6.1). Kata sandi disimpan sebagai
  * hash scrypt (lihat lib/auth); tidak pernah sebagai teks biasa.
  */
-export const users = pgTable("users", {
+export const users = sqliteTable("users", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   role: text("role", { enum: userRoles }).notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
+  createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
-    .defaultNow(),
+    .default(sql`(unixepoch())`),
 });
 
 export type User = typeof users.$inferSelect;
@@ -78,7 +62,7 @@ export type NewUser = typeof users.$inferInsert;
  * Sesi login aktif (PRD §6.2). Yang disimpan adalah HASH token (sha256),
  * bukan token mentah — kebocoran basis data tidak memberi sesi hidup.
  */
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
     id: text("id").primaryKey(),
@@ -86,10 +70,10 @@ export const sessions = pgTable(
       .notNull()
       .references(() => users.id),
     tokenHash: text("token_hash").notNull().unique(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
+      .default(sql`(unixepoch())`),
   },
   (table) => [index("sessions_user_idx").on(table.userId)]
 );
@@ -101,7 +85,7 @@ export type NewSession = typeof sessions.$inferInsert;
  * Layanan RR (PRD §6 tabel services).
  * Field _id/_en aktif karena bilingual disetujui; draf boleh belum lengkap.
  */
-export const services = pgTable(
+export const services = sqliteTable(
   "services",
   {
     id: text("id").primaryKey(),
@@ -121,7 +105,7 @@ export const services = pgTable(
 );
 
 /** Langkah proses kerja; nomor tampil (/01, /02) diturunkan dari sortOrder. */
-export const processSteps = pgTable(
+export const processSteps = sqliteTable(
   "process_steps",
   {
     id: text("id").primaryKey(),
@@ -146,9 +130,10 @@ export type NewProcessStep = typeof processSteps.$inferInsert;
 
 /**
  * Pengaturan situs (PRD §6 tabel site_settings): satu konfigurasi publik.
- * `updated_by` menyimpan id pengguna (FK menyusul bila diperlukan).
+ * `updated_by` menyimpan id pengguna; constraint FK ke users ditambahkan
+ * pada migrasi berikutnya setelah tabel users dibuat.
  */
-export const siteSettings = pgTable(
+export const siteSettings = sqliteTable(
   "site_settings",
   {
     id: text("id").primaryKey(),
@@ -157,9 +142,9 @@ export const siteSettings = pgTable(
     valueEn: text("value_en"),
     group: text("group").notNull().default("umum"),
     updatedBy: text("updated_by"),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
+    updatedAt: integer("updated_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
+      .default(sql`(unixepoch())`),
   },
   (table) => [
     check(
@@ -190,10 +175,11 @@ export type UploadStatus = (typeof uploadStatuses)[number];
 
 /**
  * Proyek (PRD §6 tabel projects).
- * Catatan: cover disimpan langsung di sini; relasi galeri ada di
- * media_assets/project_media.
+ * Catatan: cover disimpan langsung di sini sampai pustaka media
+ * (media_assets/project_media) dibangun pada fase panel admin; migrasi
+ * lanjutan akan memindahkannya ke relasi media.
  */
-export const projects = pgTable(
+export const projects = sqliteTable(
   "projects",
   {
     id: text("id").primaryKey(),
@@ -233,7 +219,7 @@ export type NewProject = typeof projects.$inferInsert;
  * Publikasi mengikuti relasi project_media + status proyeknya; berkas
  * tanpa persetujuan tidak boleh tampil.
  */
-export const mediaAssets = pgTable("media_assets", {
+export const mediaAssets = sqliteTable("media_assets", {
   id: text("id").primaryKey(),
   mediaType: text("media_type", { enum: mediaTypes }).notNull(),
   mediaRole: text("media_role", { enum: mediaRoles }).notNull(),
@@ -247,20 +233,23 @@ export const mediaAssets = pgTable("media_assets", {
   captionId: text("caption_id"),
   captionEn: text("caption_en"),
   credit: text("credit"),
-  consentConfirmed: boolean("consent_confirmed").notNull().default(false),
+  consentConfirmed: integer("consent_confirmed", { mode: "boolean" })
+    .notNull()
+    .default(false),
   mimeType: text("mime_type"),
   fileSize: integer("file_size"),
   uploadStatus: text("upload_status", { enum: uploadStatuses })
     .notNull()
     .default("diproses"),
+  // FK → users.id menyusul saat tabel users dibuat pada fase admin.
   uploadedBy: text("uploaded_by"),
-  createdAt: timestamp("created_at", { withTimezone: true })
+  createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" })
     .notNull()
-    .defaultNow(),
-  deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    .default(sql`(unixepoch())`),
+  deletedAt: integer("deleted_at", { mode: "timestamp" }),
 });
 
 export type MediaAsset = typeof mediaAssets.$inferSelect;
@@ -274,7 +263,7 @@ export type MediaSection = (typeof mediaSections)[number];
  * Penghubung proyek & media beserta urutan tampil galeri (PRD §6.5).
  * Satu berkas dapat dipakai di proyek berbeda dengan konteksnya masing-masing.
  */
-export const projectMedia = pgTable(
+export const projectMedia = sqliteTable(
   "project_media",
   {
     id: text("id").primaryKey(),
@@ -286,9 +275,9 @@ export const projectMedia = pgTable(
       .references(() => mediaAssets.id),
     section: text("section", { enum: mediaSections }),
     sortOrder: integer("sort_order").notNull().default(0),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
+      .default(sql`(unixepoch())`),
   },
   (table) => [
     index("project_media_project_idx").on(table.projectId, table.sortOrder),
@@ -302,7 +291,7 @@ export type NewProjectMedia = typeof projectMedia.$inferInsert;
  * Halaman teks statis (PRD §6.9): Tentang RR & Kebijakan Privasi yang bisa
  * disunting tanpa kode. Isi dwibahasa; publik hanya membaca `published`.
  */
-export const staticPages = pgTable(
+export const staticPages = sqliteTable(
   "static_pages",
   {
     id: text("id").primaryKey(),
@@ -328,7 +317,7 @@ export type NewStaticPage = typeof staticPages.$inferInsert;
  * Testimoni resmi (PRD §6.7): hanya tampil bila diizinkan & terverifikasi.
  * `permission_confirmed` wajib true untuk tayang; relasi proyek opsional.
  */
-export const testimonials = pgTable(
+export const testimonials = sqliteTable(
   "testimonials",
   {
     id: text("id").primaryKey(),
@@ -337,7 +326,7 @@ export const testimonials = pgTable(
     quoteEn: text("quote_en"),
     projectId: text("project_id").references(() => projects.id),
     source: text("source"),
-    permissionConfirmed: boolean("permission_confirmed")
+    permissionConfirmed: integer("permission_confirmed", { mode: "boolean" })
       .notNull()
       .default(false),
     ...contentColumns(),
@@ -354,7 +343,7 @@ export type Testimonial = typeof testimonials.$inferSelect;
 export type NewTestimonial = typeof testimonials.$inferInsert;
 
 /** Pertanyaan umum resmi (PRD §6.8) dengan jawaban yang disetujui RR. */
-export const faqs = pgTable(
+export const faqs = sqliteTable(
   "faqs",
   {
     id: text("id").primaryKey(),
@@ -380,18 +369,19 @@ export type NewFaq = typeof faqs.$inferInsert;
  * bisa ditelusuri. Append-only: satu baris = snapshot saat itu.
  * Hanya panel admin yang menulis; bukan koleksi publik.
  */
-export const contentRevisions = pgTable(
+export const contentRevisions = sqliteTable(
   "content_revisions",
   {
     id: text("id").primaryKey(),
     entityType: text("entity_type", { enum: revisionEntityTypes }).notNull(),
     entityId: text("entity_id").notNull(),
-    snapshot: jsonb("snapshot").notNull(),
+    snapshot: text("snapshot", { mode: "json" }).notNull(),
     status: text("status", { enum: contentStatuses }).notNull(),
+    // FK → users.id menyusul saat tabel users dibuat pada fase admin.
     createdBy: text("created_by"),
-    createdAt: timestamp("created_at", { withTimezone: true })
+    createdAt: integer("created_at", { mode: "timestamp" })
       .notNull()
-      .defaultNow(),
+      .default(sql`(unixepoch())`),
   },
   (table) => [
     index("content_revisions_entity_idx").on(

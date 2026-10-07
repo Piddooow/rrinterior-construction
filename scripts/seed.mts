@@ -1,6 +1,5 @@
-import { mkdirSync } from "node:fs";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
 import {
   faqs,
   mediaAssets,
@@ -30,16 +29,21 @@ import { sampleGallery } from "../src/lib/sample-gallery.ts";
 import { SITE } from "../src/lib/site.ts";
 
 /**
- * Seed konten awal beranda (terpublikasi).
+ * Seed konten awal beranda (terpublikasi) — PostgreSQL.
  * Sumber: data yang sama dengan pratinjau frontend (src/lib/mock.ts),
  * berasal dari arsip publik RR dan sudah diverifikasi labelnya.
  * Idempoten: memakai onConflictDoNothing, jadi menjalankan ulang tidak
  * menimpa perubahan yang dibuat lewat CMS.
  */
 
-mkdirSync("data", { recursive: true });
-const sqlite = new Database(process.env.DATABASE_URL ?? "./data/rr.db");
-const db = drizzle(sqlite);
+const url = process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL;
+if (!url) {
+  console.error("DATABASE_URL (atau DATABASE_URL_UNPOOLED) belum diisi.");
+  process.exit(1);
+}
+
+const pool = new Pool({ connectionString: url, max: 1 });
+const db = drizzle(pool);
 
 const now = new Date();
 
@@ -98,7 +102,7 @@ const stepRows: NewProcessStep[] = mockSteps.map((s, index) => ({
  * Ulasan pratinjau (Tahap 4). `permissionConfirmed` diisi true supaya
  * gerbang publikasi PRD tetap konsisten (kueri publik hanya menampilkan
  * baris ber-izin); status "contoh" disimpan di kolom `source` dan wajib
- * diganti ulasan asli sebelum produksi (kendala-dan-tindakan.md A4).
+ * diganti ulasan asli sebelum produksi (kendala A4).
  */
 const testimonialRows: NewTestimonial[] = mockTestimonials.map((t, index) => ({
   id: `tst-${String(index + 1).padStart(2, "0")}`,
@@ -214,8 +218,10 @@ const settingRows: NewSiteSetting[] = [
   {
     id: "set-prep-body",
     key: "prep_body",
-    valueEn: "A photo, a rough size, or a description of the problem is enough. Measurements, budget, and final design can come later, step by step.",
-    valueId: "Foto, ukuran kasar, atau deskripsi masalahnya sudah cukup. Ukuran, anggaran, dan desain final bisa menyusul, selangkah demi selangkah.",
+    valueEn:
+      "A photo, a rough size, or a description of the problem is enough. Measurements, budget, and final design can come later, step by step.",
+    valueId:
+      "Foto, ukuran kasar, atau deskripsi masalahnya sudah cukup. Ukuran, anggaran, dan desain final bisa menyusul, selangkah demi selangkah.",
     group: "umum",
   },
 ];
@@ -279,22 +285,24 @@ await db.insert(projectMedia).values(projectMediaRows).onConflictDoNothing();
  * yang sudah pernah di-seed sebelum ringkasan ditambahkan). Hanya
  * menyentuh baris yang belum punya ringkasan, jadi suntingan CMS aman.
  */
-const backfillSummary = sqlite.prepare(
-  "UPDATE projects SET summary_en = ?, summary_id = ? WHERE slug = ? AND summary_en IS NULL AND summary_id IS NULL"
-);
 for (const w of works) {
-  backfillSummary.run(w.summary.en, w.summary.id, w.slug);
+  await pool.query(
+    "UPDATE projects SET summary_en = $1, summary_id = $2 WHERE slug = $3 AND summary_en IS NULL AND summary_id IS NULL",
+    [w.summary.en, w.summary.id, w.slug]
+  );
 }
 
 /**
  * Backfill provenance & kredit untuk baris lama (database yang di-seed
  * sebelum kolom/atribusi ini ada). Hanya mengisi yang masih kosong.
  */
-const backfillSource = sqlite.prepare(
-  "UPDATE projects SET source_post = ? WHERE slug = ? AND source_post IS NULL"
-);
 for (const w of works) {
-  if (w.sourcePost) backfillSource.run(w.sourcePost, w.slug);
+  if (w.sourcePost) {
+    await pool.query(
+      "UPDATE projects SET source_post = $1 WHERE slug = $2 AND source_post IS NULL",
+      [w.sourcePost, w.slug]
+    );
+  }
 }
 
 /**
@@ -302,36 +310,33 @@ for (const w of works) {
  * urut arsip (mis. "089_ABC") tidak valid untuk URL Instagram. Hanya baris
  * yang persis cocok pola 3 digit + garis bawah yang disentuh.
  */
-sqlite
-  .prepare(
-    "UPDATE projects SET source_post = substr(source_post, instr(source_post, '_') + 1) WHERE source_post GLOB '[0-9][0-9][0-9]_*'"
-  )
-  .run();
-const backfillCredit = sqlite.prepare(
-  "UPDATE media_assets SET credit = ? WHERE credit IS NULL AND id LIKE 'media-%'"
+await pool.query(
+  "UPDATE projects SET source_post = substring(source_post from position('_' in source_post) + 1) WHERE source_post ~ '^[0-9]{3}_'"
 );
-backfillCredit.run("Arsip RR Design & Build");
+await pool.query(
+  "UPDATE media_assets SET credit = $1 WHERE credit IS NULL AND id LIKE 'media-%'",
+  ["Arsip RR Design & Build"]
+);
 
-const counts = {
-  projects: sqlite.prepare("SELECT COUNT(*) AS n FROM projects").get() as { n: number },
-  services: sqlite.prepare("SELECT COUNT(*) AS n FROM services").get() as { n: number },
-  processSteps: sqlite.prepare("SELECT COUNT(*) AS n FROM process_steps").get() as {
-    n: number;
-  },
-  settings: sqlite.prepare("SELECT COUNT(*) AS n FROM site_settings").get() as {
-    n: number;
-  },
-  media: sqlite.prepare("SELECT COUNT(*) AS n FROM media_assets").get() as {
-    n: number;
-  },
-  projectMedia: sqlite.prepare("SELECT COUNT(*) AS n FROM project_media").get() as {
-    n: number;
-  },
+const count = async (table: string) => {
+  const result = await pool.query<{ n: number }>(
+    `SELECT COUNT(*)::int AS n FROM ${table}`
+  );
+  return result.rows[0]?.n ?? 0;
 };
 
-sqlite.close();
+const counts = {
+  projects: await count("projects"),
+  services: await count("services"),
+  processSteps: await count("process_steps"),
+  settings: await count("site_settings"),
+  media: await count("media_assets"),
+  projectMedia: await count("project_media"),
+};
+
+await pool.end();
 console.log(
-  `Seed selesai: ${counts.projects.n} proyek, ${counts.services.n} layanan, ` +
-    `${counts.processSteps.n} langkah proses, ${counts.settings.n} pengaturan, ` +
-    `${counts.media.n} media, ${counts.projectMedia.n} relasi media.`
+  `Seed selesai: ${counts.projects} proyek, ${counts.services} layanan, ` +
+    `${counts.processSteps} langkah proses, ${counts.settings} pengaturan, ` +
+    `${counts.media} media, ${counts.projectMedia} relasi media.`
 );
