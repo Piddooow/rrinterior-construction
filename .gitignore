@@ -67,3 +67,8 @@ data/*
 
 # Cadangan basis data (snapshot lokal, jangan masuk repositori)
 backups/
+
+# Skill Neon (tooling agen) & dokumen spesifikasi internal
+.agents/
+skills-lock.json
+revisi-company-profile-website-architecture.md
