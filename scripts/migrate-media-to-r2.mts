@@ -13,9 +13,9 @@ import {
 /**
  * Migrasi media dinamis lama (`public/uploads/*`) ke Cloudflare R2
  * (dokumen §8.5): salin ke key unik → verifikasi existence + ukuran +
- * checksum sha256 → perbarui referensi (storage_key + file_url) lewat
- * mapping yang tercetak. Idempoten: aman diulang. Berkas sumber TIDAK
- * dihapus (retensi sampai verifikasi disetujui).
+ * checksum sha256 → perbarui SEMUA referensi aktif (pustaka media +
+ * cover proyek) lewat mapping yang tercetak. Idempoten: aman diulang.
+ * Berkas sumber TIDAK dihapus (retensi sampai verifikasi disetujui).
  *
  * Jalankan: npm run db:migrate-media (butuh environment R2 + DATABASE_URL)
  */
@@ -51,14 +51,45 @@ const uploadDir =
   process.env.UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads");
 const pool = new Pool({ connectionString: url, max: 1 });
 
-const rows = (
-  await pool.query<{ id: string; file_url: string; storage_key: string | null }>(
-    "SELECT id, file_url, storage_key FROM media_assets WHERE file_url LIKE '/uploads/%' ORDER BY id"
+/**
+ * Perbarui semua referensi aktif dari path lokal lama ke URL publik R2
+ * (§8.5.3): pustaka media (file + thumbnail) dan cover proyek. Snapshot
+ * revisi historis tidak disentuh (append-only). `updated_at` proyek tidak
+ * diubah agar sinyal sitemap tidak ikut bergeser oleh migrasi storage.
+ */
+async function updateReferences(oldPath: string, newUrl: string, key: string) {
+  await pool.query(
+    "UPDATE media_assets SET storage_key = $1, file_url = $2, updated_at = now() WHERE file_url = $3",
+    [key, newUrl, oldPath]
+  );
+  await pool.query(
+    "UPDATE media_assets SET thumbnail_url = $1 WHERE thumbnail_url = $2",
+    [newUrl, oldPath]
+  );
+  await pool.query("UPDATE projects SET cover_url = $1 WHERE cover_url = $2", [
+    newUrl,
+    oldPath,
+  ]);
+}
+
+// Kumpulkan nama berkas dari SEMUA referensi aktif yang masih lokal.
+const mediaRows = (
+  await pool.query<{ file_url: string }>(
+    "SELECT file_url FROM media_assets WHERE file_url LIKE '/uploads/%'"
+  )
+).rows;
+const coverRows = (
+  await pool.query<{ cover_url: string }>(
+    "SELECT cover_url FROM projects WHERE cover_url LIKE '/uploads/%'"
   )
 ).rows;
 
-if (rows.length === 0) {
-  console.log("Tidak ada media lokal `/uploads/*` untuk dimigrasi.");
+const names = new Set<string>();
+for (const row of mediaRows) names.add(path.basename(row.file_url));
+for (const row of coverRows) names.add(path.basename(row.cover_url));
+
+if (names.size === 0) {
+  console.log("Tidak ada referensi lokal `/uploads/*` untuk dimigrasi.");
   await pool.end();
   process.exit(0);
 }
@@ -67,8 +98,8 @@ let migrated = 0;
 let verified = 0;
 let failed = 0;
 
-for (const row of rows) {
-  const name = path.basename(row.file_url);
+for (const name of [...names].sort()) {
+  const oldPath = `/uploads/${name}`;
   const key = `uploads/${name}`;
   try {
     const bytes = await readFile(path.join(uploadDir, name));
@@ -81,10 +112,7 @@ for (const row of rows) {
         ? createHash("sha256").update(remote).digest("hex")
         : "";
       if (remoteSha === localSha) {
-        await pool.query(
-          "UPDATE media_assets SET storage_key = $1, file_url = $2, updated_at = now() WHERE id = $3",
-          [key, r2PublicUrl(key), row.id]
-        );
+        await updateReferences(oldPath, r2PublicUrl(key), key);
         verified += 1;
         console.log(`  sudah ada & cocok: ${name} → ${key} (referensi dirapikan)`);
         continue;
@@ -95,7 +123,11 @@ for (const row of rows) {
     }
 
     const extension = name.slice(name.lastIndexOf(".") + 1).toLowerCase();
-    await putObject(key, bytes, MIME_BY_EXT[extension] ?? "application/octet-stream");
+    await putObject(
+      key,
+      bytes,
+      MIME_BY_EXT[extension] ?? "application/octet-stream"
+    );
 
     const after = await headObject(key);
     if (!after || after.size !== bytes.byteLength) {
@@ -109,10 +141,7 @@ for (const row of rows) {
       throw new Error("checksum objek tidak cocok dengan sumber");
     }
 
-    await pool.query(
-      "UPDATE media_assets SET storage_key = $1, file_url = $2, updated_at = now() WHERE id = $3",
-      [key, r2PublicUrl(key), row.id]
-    );
+    await updateReferences(oldPath, r2PublicUrl(key), key);
     migrated += 1;
     console.log(
       `  OK ${name} → ${key} (${bytes.byteLength} byte, sha256 ${localSha.slice(0, 12)}…)`

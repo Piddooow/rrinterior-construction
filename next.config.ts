@@ -60,6 +60,15 @@ const r2Public = (() => {
 const r2S3Origin = process.env.R2_ACCOUNT_ID?.trim()
   ? `https://${process.env.R2_ACCOUNT_ID.trim()}.r2.cloudflarestorage.com`
   : null;
+// AWS SDK menandatangani URL dengan gaya virtual-hosted (bucket di depan host),
+// jadi origin itu juga harus diizinkan agar PUT langsung dari browser lolos CSP.
+const r2BucketOrigin = (() => {
+  const account = process.env.R2_ACCOUNT_ID?.trim();
+  const bucket = process.env.R2_BUCKET?.trim();
+  return account && bucket
+    ? `https://${bucket}.${account}.r2.cloudflarestorage.com`
+    : null;
+})();
 
 const CSP = [
   "default-src 'self'",
@@ -68,7 +77,7 @@ const CSP = [
   `img-src 'self' data: blob:${r2Public ? ` ${r2Public.origin}` : ""}`,
   "font-src 'self' data:",
   `media-src 'self' blob:${r2Public ? ` ${r2Public.origin}` : ""}`,
-  `connect-src 'self'${r2S3Origin ? ` ${r2S3Origin}` : ""}`,
+  `connect-src 'self'${r2S3Origin ? ` ${r2S3Origin}` : ""}${r2BucketOrigin ? ` ${r2BucketOrigin}` : ""}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
