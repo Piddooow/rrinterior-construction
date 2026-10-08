@@ -1,0 +1,15 @@
+# Artefak & rahasia lokal tidak ikut deploy.
+.vercel
+.env*
+.neon
+.next
+.next-build
+internal/
+audits/
+security-audit/
+backups/
+data/
+data-foto/
+drizzle-sqlite/
+node_modules
+*.tsbuildinfo
