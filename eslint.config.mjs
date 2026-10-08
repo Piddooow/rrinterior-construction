@@ -15,6 +15,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Harness audit (perkakas pengujian, bukan kode aplikasi):
     "audits/**",
+    // Perkakas lokal yang gitignored (paket skill audit & dokumen kerja):
+    "security-audit/**",
+    "internal/**",
   ]),
 ]);
 
