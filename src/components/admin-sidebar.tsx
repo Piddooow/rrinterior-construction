@@ -148,7 +148,7 @@ export function AdminSidebar({
           alt="RR Design & Build"
           width={1024}
           height={1024}
-          className="h-11 w-11"
+          className="h-12 w-12"
         />
         <Link
           href="/"
@@ -189,7 +189,7 @@ export function AdminSidebar({
               alt="RR Design & Build"
               width={1024}
               height={1024}
-              className="h-14 w-14"
+              className="h-16 w-16"
             />
           </Link>
           <div className="flex items-center gap-1">

@@ -86,7 +86,7 @@ export function SiteFooter({
               aria-label="RR Design & Build"
               className="focus-ring w-fit"
             >
-              <BrandLogo className="h-24 w-auto" />
+              <BrandLogo className="h-28 w-auto" />
             </Link>
             <p className="text-sm leading-relaxed text-ink-2">
               {dict.footer.blurb}

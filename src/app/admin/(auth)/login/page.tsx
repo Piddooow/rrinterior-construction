@@ -24,7 +24,7 @@ export default async function AdminLoginPage({
           alt="RR Design & Build"
           width={1024}
           height={1024}
-          className="h-20 w-20"
+          className="h-24 w-24"
         />
 
         <h1 className="mt-8 font-display text-balance text-3xl leading-tight">
