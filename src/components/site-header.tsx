@@ -214,7 +214,7 @@ export function SiteHeader({
             onClick={closeMenu}
             className="focus-ring flex items-center py-1"
           >
-            <BrandLogo eager className="h-12 w-auto" />
+            <BrandLogo eager className="h-14 w-auto" />
           </Link>
 
           {/* Navbar inline desktop (dikembalikan): grup dropdown Karya &
@@ -326,7 +326,7 @@ export function SiteHeader({
         eyebrow={dict.menu.eyebrow}
         tagline={dict.menu.tagline}
         closeLabel={dict.menu.close}
-        brand={<BrandLogo className="h-14 w-auto" eager tone="light" />}
+        brand={<BrandLogo className="h-20 w-auto" eager tone="light" />}
         note={{
           lines: [dict.menuNote.area, dict.menuNote.scope, dict.menuNote.invite],
         }}
