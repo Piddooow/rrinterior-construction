@@ -31,7 +31,7 @@ export function organizationJsonLd() {
     "@id": `${BASE}/#organization`,
     name: "RR Design & Build",
     url: BASE,
-    logo: `${BASE}/brand/color-rr-logo-coklat.svg`,
+    logo: `${BASE}/brand/color-rr-logo-coklat.webp`,
     email: SITE.email,
     sameAs: [SITE.instagram],
     contactPoint: [

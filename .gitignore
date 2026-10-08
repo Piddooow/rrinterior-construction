@@ -79,3 +79,7 @@ security-audit/
 # Dokumen internal proyek (audit, mapping, runbook) - tidak untuk repo publik
 internal/
 .neon
+
+# Master logo baru (sumber lokal, aset final ada di public/brand)
+new-logo-rr-cokelat.webp
+logo-rrinterior-new-putih.webp

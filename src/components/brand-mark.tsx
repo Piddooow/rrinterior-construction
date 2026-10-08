@@ -2,8 +2,9 @@ import Image from "next/image";
 
 /**
  * Logo resmi RR (aset final di `public/brand`): monogram rumah + RR tanpa
- * teks, dua varian warna (R17) — `coklat` untuk latar terang dan `light`
- * untuk latar cokelat/gelap. Varian light memakai kelas `brand-cream`
+ * teks, dua varian warna — `coklat` untuk latar terang dan `light` untuk
+ * latar cokelat/gelap. Aset baru (Okt 2026): WEBP 1024² dari master 2500²
+ * (garis lebih rapi, tidak pecah). Varian light memakai kelas `brand-cream`
  * sebagai penanda audit (r1/r7).
  *
  * `eager` dipakai untuk pemakaian di atas lipatan (header, panel, tirai,
@@ -27,12 +28,12 @@ export function BrandLogo({
     <Image
       src={
         light
-          ? "/brand/color-rr-logo-light.svg"
-          : "/brand/color-rr-logo-coklat.svg"
+          ? "/brand/color-rr-logo-light.webp"
+          : "/brand/color-rr-logo-coklat.webp"
       }
       alt={BRAND_NAME}
-      width={304}
-      height={315}
+      width={1024}
+      height={1024}
       draggable={false}
       loading={eager ? "eager" : "lazy"}
       className={light ? `brand-cream ${className}` : className}

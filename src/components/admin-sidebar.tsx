@@ -144,7 +144,7 @@ export function AdminSidebar({
         </button>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/brand/color-rr-logo-coklat.svg"
+          src="/brand/color-rr-logo-coklat.webp"
           alt="RR Design & Build"
           width={304}
           height={315}
@@ -185,7 +185,7 @@ export function AdminSidebar({
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/color-rr-logo-coklat.svg"
+              src="/brand/color-rr-logo-coklat.webp"
               alt="RR Design & Build"
               width={304}
               height={315}

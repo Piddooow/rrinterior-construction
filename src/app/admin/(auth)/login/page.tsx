@@ -20,7 +20,7 @@ export default async function AdminLoginPage({
       <div className="w-full max-w-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/brand/color-rr-logo-coklat.svg"
+          src="/brand/color-rr-logo-coklat.webp"
           alt="RR Design & Build"
           width={304}
           height={315}
