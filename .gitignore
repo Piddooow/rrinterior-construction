@@ -73,6 +73,9 @@ backups/
 skills-lock.json
 revisi-company-profile-website-architecture.md
 
+# Paket skill security-audit (sumber lokal; terpasang global di ~/.config/opencode/skills)
+security-audit/
+
 # Dokumen internal proyek (audit, mapping, runbook) - tidak untuk repo publik
 internal/
 .neon
