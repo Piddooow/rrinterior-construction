@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,13 @@ const cardClip = (cut: number) =>
   `polygon(${cut}px 0%, calc(100% - ${cut}px) 0%, 100% ${cut}px, 100% 100%, calc(100% - ${cut}px) 100%, ${cut}px 100%, 0 100%, 0 0)`;
 const cardCut = (cardSize: number) =>
   cardSize >= 365 ? 50 : Math.round(cardSize * 0.172);
+
+/**
+ * Layout effect di klien, effect biasa saat SSR: ukuran kartu ponsel
+ * dikoreksi sebelum paint pertama supaya panel tidak berkedip di 365px.
+ */
+const useIsoLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export type TestimonialDeckItem = {
   /** Kunci stabil (mis. tst-01) — kartu tidak pernah remount saat deck berputar. */
@@ -39,11 +46,18 @@ function arenaPosition(arenaIndex: number, n: number): number {
   return n % 2 ? arenaIndex - (n + 1) / 2 : arenaIndex - n / 2;
 }
 
+/**
+ * Kipas yang sama di semua lebar: langkah kartu `cardSize/1.5`; angkat
+ * kartu memakai rasio desktop (-65px/±15px pada 365px = 0.178/0.041 ×
+ * cardSize) supaya komposisi ponsel proporsional — bukan konstanta
+ * piksel yang kaku.
+ */
 function cardTransform(position: number, cardSize: number, isCenter: boolean) {
+  const lift = Math.round(cardSize * (isCenter ? 0.178 : 0.041));
   return `
     translate(-50%, -50%)
     translateX(${(cardSize / 1.5) * position}px)
-    translateY(${isCenter ? -65 : position % 2 ? 15 : -15}px)
+    translateY(${isCenter ? -lift : position % 2 ? lift : -lift}px)
     rotate(${isCenter ? 0 : position % 2 ? 2.5 : -2.5}deg)
   `;
 }
@@ -52,13 +66,14 @@ function CardFace({
   item,
   isCenter,
   cut,
-  staticAuthor = false,
+  compact,
 }: {
   item: TestimonialDeckItem;
   isCenter: boolean;
   cut: number;
-  /** Ponsel: penulis mengalir setelah kutipan (tidak absolute) — anti-tumpuk. */
-  staticAuthor?: boolean;
+  /** Kartu ponsel: padding, monogram, dan tipografi ikut mengecil supaya
+   *  kutipan dan baris penulis tetap punya ruang (anti-tumpuk). */
+  compact: boolean;
 }) {
   return (
     <>
@@ -77,7 +92,8 @@ function CardFace({
       <span
         aria-hidden="true"
         className={cn(
-          "mb-4 flex h-14 w-12 items-center justify-center font-display text-lg leading-none",
+          "flex items-center justify-center font-display leading-none",
+          compact ? "mb-2.5 h-10 w-9 text-sm" : "mb-4 h-14 w-12 text-lg",
           isCenter ? "bg-primary-ink text-primary" : "bg-subtle text-ink-2"
         )}
         style={{ boxShadow: "3px 3px 0 var(--canvas)" }}
@@ -86,7 +102,8 @@ function CardFace({
       </span>
       <blockquote
         className={cn(
-          "font-display text-base leading-snug text-balance sm:text-lg",
+          "font-display leading-snug text-balance",
+          compact ? "text-sm" : "text-base sm:text-lg",
           isCenter ? "text-primary-ink" : "text-ink"
         )}
       >
@@ -94,9 +111,10 @@ function CardFace({
       </blockquote>
       <p
         className={cn(
-          staticAuthor
-            ? "mt-6 text-sm italic"
-            : "absolute inset-x-6 bottom-7 text-sm italic sm:inset-x-8 sm:bottom-8",
+          "absolute italic",
+          compact
+            ? "inset-x-4 bottom-4 text-xs"
+            : "inset-x-6 bottom-7 text-sm sm:inset-x-8 sm:bottom-8",
           isCenter ? "text-primary-ink/80" : "text-ink-3"
         )}
       >
@@ -109,7 +127,7 @@ function CardFace({
   );
 }
 
-/** Tombol navigasi dek — dipakai dek fan (desktop) dan kartu tunggal (ponsel). */
+/** Tombol navigasi dek — dipakai kipas desktop & kipas kecil ponsel. */
 function DeckButtons({
   labels,
   move,
@@ -131,7 +149,7 @@ function DeckButtons({
           onClick={() => move(btn.steps)}
           aria-label={btn.label}
           className={cn(
-            "focus-ring flex size-14 cursor-pointer items-center justify-center rounded-sm transition-colors",
+            "focus-ring flex size-12 cursor-pointer items-center justify-center rounded-sm transition-colors sm:size-14",
             "border-2 border-line bg-canvas text-ink hover:bg-primary hover:text-primary-ink"
           )}
         >
@@ -143,17 +161,18 @@ function DeckButtons({
 }
 
 /**
- * Deck ulasan bertumpuk — **perilaku persis referensi** StaggerTestimonials:
+ * Deck ulasan bertumpuk — perilaku persis referensi StaggerTestimonials:
  * setiap kartu BERANGKAT ke slot barunya (semua kartu bergeser bersamaan,
  * transisi 500ms `ease-in-out`), bukan meluncur keluar ke samping. Klik
  * kartu membawanya ke tengah; tombol prev/next menggeser satu langkah.
  *
- * Penyesuaian situs: token warna PRD (bukan HSL shadcn), monogram inisial
- * sebagai pengganti foto, auto-slide tiap **3 detik** yang berhenti saat
- * kursor/fokus berada di deck (lanjut setelah pergi), dan reduced-motion
- * mematikan auto-slide tanpa mengubah fungsi tombol. Sejak R22f dek memakai
- * radius panel situs (rounded-md) dan tombol panah memakai radius tombol
- * situs (rounded-sm) supaya konsisten dengan kontrol lain.
+ * Ponsel memakai kipas yang SAMA (bukan satu kartu): kartu ~66vw
+ * (landasan 224px, atap 300px) dengan detail compact supaya kutipan dan
+ * baris penulis tidak pernah bertumpuk; desktop tetap 365px penuh.
+ *
+ * Auto-slide 3 detik berhenti saat kursor/fokus di deck, tab tersembunyi,
+ * atau reduced-motion — dan hitungannya mengulang setelah aksi manual
+ * supaya slide tidak menyusul tepat setelah pengguna memilih kartu.
  */
 export function StaggerTestimonials({
   items,
@@ -165,8 +184,9 @@ export function StaggerTestimonials({
   const n = items.length;
   const [order, setOrder] = useState<number[]>(() => items.map((_, i) => i));
   const [cardSize, setCardSize] = useState(365);
-  const [isMobile, setIsMobile] = useState(false);
+  const [compact, setCompact] = useState(false);
   const [paused, setPaused] = useState(false);
+  const [manualTick, setManualTick] = useState(0);
 
   const move = useCallback(
     (steps: number) => {
@@ -180,8 +200,17 @@ export function StaggerTestimonials({
     [n]
   );
 
+  /** Aksi manual pengguna: geser satu langkah + ulang hitungan auto-slide. */
+  const manualMove = useCallback(
+    (steps: number) => {
+      move(steps);
+      setManualTick((tick) => tick + 1);
+    },
+    [move]
+  );
+
   // Auto-slide 3 detik: berhenti saat kursor/fokus di deck, tab tersembunyi,
-  // atau reduced-motion.
+  // atau reduced-motion; hitungan mulai ulang tiap aksi manual (manualTick).
   useEffect(() => {
     if (n < 2 || paused) return;
     if (
@@ -194,20 +223,21 @@ export function StaggerTestimonials({
       if (!document.hidden) move(1);
     }, AUTOPLAY_MS);
     return () => window.clearInterval(id);
-  }, [n, paused, move]);
+  }, [n, paused, move, manualTick]);
 
-  useEffect(() => {
+  useIsoLayoutEffect(() => {
     const updateSize = () => {
-      setIsMobile(!window.matchMedia("(min-width: 640px)").matches);
       if (window.matchMedia("(min-width: 640px)").matches) {
+        setCompact(false);
         setCardSize(365);
         return;
       }
-      // Ponsel: kartu mengikuti lebar layar (66vw) dengan batas bawah dan
-      // atas yang nyaman — tidak kekecilan di 320, tidak terlalu besar di
-      // 430 (R16a).
+      // Ponsel: kipas yang sama diperkecil — 66vw dengan batas nyaman
+      // (landasan 240px supaya kutipan terpanjang tetap utuh di 320px,
+      // atap 300px supaya kartu tidak kebesaran di layar lebar).
+      setCompact(true);
       setCardSize(
-        Math.max(215, Math.min(290, Math.round(window.innerWidth * 0.66)))
+        Math.max(240, Math.min(300, Math.round(window.innerWidth * 0.66)))
       );
     };
     updateSize();
@@ -219,48 +249,16 @@ export function StaggerTestimonials({
 
   const centerIndex = n % 2 ? (n + 1) / 2 : n / 2;
   const center = items[order[centerIndex]];
-
-  // Ponsel (<640px): dek fan diganti satu kartu aliran normal supaya kutipan
-  // dan baris penulis tidak pernah bertumpuk. Tinggi minimum stabil mencegah
-  // halaman bergeser saat kartu berganti otomatis; transisi memakai kelas
-  // `card-in` (sudah mematuhi reduced-motion di globals.css).
-  if (isMobile) {
-    const cut = 28;
-    return (
-      <div
-        role="region"
-        aria-label={labels.region}
-        className="relative w-full rounded-md bg-subtle/40 p-4"
-        onMouseEnter={() => setPaused(true)}
-        onMouseLeave={() => setPaused(false)}
-        onFocusCapture={() => setPaused(true)}
-        onBlurCapture={() => setPaused(false)}
-      >
-        <div
-          key={center.id}
-          data-center
-          className="card-in relative min-h-[22rem] border-2 border-primary bg-primary p-6 text-primary-ink"
-          style={{
-            clipPath: cardClip(cut),
-            boxShadow: "0px 8px 0px 4px var(--border-subtle)",
-          }}
-        >
-          <CardFace item={center} isCenter cut={cut} staticAuthor />
-        </div>
-        <p className="sr-only" aria-live="polite">
-          {center.author}
-        </p>
-        <DeckButtons labels={labels} move={move} className="mt-3" />
-      </div>
-    );
-  }
+  // Tinggi panel mengikuti kipas (1.644 × kartu — rasio desktop yang sama)
+  // plus ruang ekstra di ponsel untuk baris tombol yang ukurannya tetap.
+  const height = Math.round(cardSize * 1.644) + (compact ? 24 : 0);
 
   return (
     <div
       role="region"
       aria-label={labels.region}
       className="relative w-full overflow-hidden rounded-md bg-subtle/40"
-      style={{ height: Math.round(cardSize * 1.644) }}
+      style={{ height }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocusCapture={() => setPaused(true)}
@@ -273,9 +271,10 @@ export function StaggerTestimonials({
           <div
             key={item.id}
             data-center={isCenter || undefined}
-            onClick={() => move(position)}
+            onClick={() => manualMove(position)}
             className={cn(
-              "absolute left-1/2 top-1/2 cursor-pointer border-2 p-6 transition-all duration-500 ease-in-out motion-reduce:transition-none sm:p-8",
+              "absolute left-1/2 top-1/2 cursor-pointer border-2 transition-all duration-500 ease-in-out motion-reduce:transition-none",
+              compact ? "p-4" : "p-6 sm:p-8",
               isCenter
                 ? "border-primary bg-primary text-primary-ink"
                 : "border-line bg-surface text-ink hover:border-line-strong"
@@ -293,7 +292,12 @@ export function StaggerTestimonials({
                 : "0px 0px 0px 0px transparent",
             }}
           >
-            <CardFace item={item} isCenter={isCenter} cut={cardCut(cardSize)} />
+            <CardFace
+              item={item}
+              isCenter={isCenter}
+              cut={cardCut(cardSize)}
+              compact={compact}
+            />
           </div>
         );
       })}
@@ -304,7 +308,7 @@ export function StaggerTestimonials({
 
       <DeckButtons
         labels={labels}
-        move={move}
+        move={manualMove}
         className="absolute bottom-4 left-1/2 -translate-x-1/2"
       />
     </div>
