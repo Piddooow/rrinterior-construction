@@ -61,10 +61,12 @@ export async function generateMetadata({
       type: "website",
       images: [
         {
-          url: "/mock/hero-living.webp",
-          width: 1440,
-          height: 803,
-          alt: dict.hero.imageAlt,
+          // Preview tautan memakai logo utama (icon-rr): kanvas cokelat
+          // sewarna ikon + mark krem di tengah — konsisten di semua kanal.
+          url: "/brand/og-rr.png",
+          width: 1200,
+          height: 630,
+          alt: "Logo RR Design & Build",
         },
       ],
     },
