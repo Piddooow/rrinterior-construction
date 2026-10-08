@@ -52,10 +52,13 @@ function CardFace({
   item,
   isCenter,
   cut,
+  staticAuthor = false,
 }: {
   item: TestimonialDeckItem;
   isCenter: boolean;
   cut: number;
+  /** Ponsel: penulis mengalir setelah kutipan (tidak absolute) — anti-tumpuk. */
+  staticAuthor?: boolean;
 }) {
   return (
     <>
@@ -91,7 +94,9 @@ function CardFace({
       </blockquote>
       <p
         className={cn(
-          "absolute inset-x-6 bottom-7 text-sm italic sm:inset-x-8 sm:bottom-8",
+          staticAuthor
+            ? "mt-6 text-sm italic"
+            : "absolute inset-x-6 bottom-7 text-sm italic sm:inset-x-8 sm:bottom-8",
           isCenter ? "text-primary-ink/80" : "text-ink-3"
         )}
       >
@@ -101,6 +106,39 @@ function CardFace({
         ) : null}
       </p>
     </>
+  );
+}
+
+/** Tombol navigasi dek — dipakai dek fan (desktop) dan kartu tunggal (ponsel). */
+function DeckButtons({
+  labels,
+  move,
+  className,
+}: {
+  labels: { prev: string; next: string };
+  move: (steps: number) => void;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex justify-center gap-2", className)}>
+      {[
+        { label: labels.prev, icon: ChevronLeft, steps: -1 },
+        { label: labels.next, icon: ChevronRight, steps: 1 },
+      ].map((btn) => (
+        <button
+          key={btn.label}
+          type="button"
+          onClick={() => move(btn.steps)}
+          aria-label={btn.label}
+          className={cn(
+            "focus-ring flex size-14 cursor-pointer items-center justify-center rounded-sm transition-colors",
+            "border-2 border-line bg-canvas text-ink hover:bg-primary hover:text-primary-ink"
+          )}
+        >
+          <btn.icon aria-hidden="true" className="size-6" />
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -127,6 +165,7 @@ export function StaggerTestimonials({
   const n = items.length;
   const [order, setOrder] = useState<number[]>(() => items.map((_, i) => i));
   const [cardSize, setCardSize] = useState(365);
+  const [isMobile, setIsMobile] = useState(false);
   const [paused, setPaused] = useState(false);
 
   const move = useCallback(
@@ -159,6 +198,7 @@ export function StaggerTestimonials({
 
   useEffect(() => {
     const updateSize = () => {
+      setIsMobile(!window.matchMedia("(min-width: 640px)").matches);
       if (window.matchMedia("(min-width: 640px)").matches) {
         setCardSize(365);
         return;
@@ -179,6 +219,41 @@ export function StaggerTestimonials({
 
   const centerIndex = n % 2 ? (n + 1) / 2 : n / 2;
   const center = items[order[centerIndex]];
+
+  // Ponsel (<640px): dek fan diganti satu kartu aliran normal supaya kutipan
+  // dan baris penulis tidak pernah bertumpuk. Tinggi minimum stabil mencegah
+  // halaman bergeser saat kartu berganti otomatis; transisi memakai kelas
+  // `card-in` (sudah mematuhi reduced-motion di globals.css).
+  if (isMobile) {
+    const cut = 28;
+    return (
+      <div
+        role="region"
+        aria-label={labels.region}
+        className="relative w-full rounded-md bg-subtle/40 p-4"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onFocusCapture={() => setPaused(true)}
+        onBlurCapture={() => setPaused(false)}
+      >
+        <div
+          key={center.id}
+          data-center
+          className="card-in relative min-h-[22rem] border-2 border-primary bg-primary p-6 text-primary-ink"
+          style={{
+            clipPath: cardClip(cut),
+            boxShadow: "0px 8px 0px 4px var(--border-subtle)",
+          }}
+        >
+          <CardFace item={center} isCenter cut={cut} staticAuthor />
+        </div>
+        <p className="sr-only" aria-live="polite">
+          {center.author}
+        </p>
+        <DeckButtons labels={labels} move={move} className="mt-3" />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -227,25 +302,11 @@ export function StaggerTestimonials({
         {center.author}
       </p>
 
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-        {[
-          { label: labels.prev, icon: ChevronLeft, steps: -1 },
-          { label: labels.next, icon: ChevronRight, steps: 1 },
-        ].map((btn) => (
-          <button
-            key={btn.label}
-            type="button"
-            onClick={() => move(btn.steps)}
-            aria-label={btn.label}
-            className={cn(
-              "focus-ring flex size-14 cursor-pointer items-center justify-center rounded-sm transition-colors",
-              "border-2 border-line bg-canvas text-ink hover:bg-primary hover:text-primary-ink"
-            )}
-          >
-            <btn.icon aria-hidden="true" className="size-6" />
-          </button>
-        ))}
-      </div>
+      <DeckButtons
+        labels={labels}
+        move={move}
+        className="absolute bottom-4 left-1/2 -translate-x-1/2"
+      />
     </div>
   );
 }
