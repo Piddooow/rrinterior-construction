@@ -10,6 +10,7 @@ import {
   updateStaticPage,
   type StaticPageInput,
 } from "@/lib/content-admin";
+import { requireUser } from "@/lib/admin-auth";
 import { revalidatePublicSite } from "@/lib/revalidate";
 
 /**
@@ -53,6 +54,7 @@ export async function savePageAction(
   _prev: SavePageState,
   formData: FormData
 ): Promise<SavePageState> {
+  await requireUser();
   const id = field(formData, "id");
   const isNew = !id || id === "new";
   let targetId = id ?? "new";
@@ -68,6 +70,7 @@ export async function savePageAction(
 }
 
 export async function publishPageAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id");
   let targetId = id ?? "new";
   let failure: string | null = null;
@@ -86,6 +89,7 @@ export async function publishPageAction(formData: FormData): Promise<void> {
 }
 
 export async function unpublishPageAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {
@@ -102,6 +106,7 @@ export async function unpublishPageAction(formData: FormData): Promise<void> {
 }
 
 export async function trashPageAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {
@@ -118,6 +123,7 @@ export async function trashPageAction(formData: FormData): Promise<void> {
 }
 
 export async function restorePageAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {

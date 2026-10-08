@@ -9,6 +9,7 @@ import {
   restoreStaticPage,
   type TrashEntityType,
 } from "@/lib/content-admin";
+import { requireUser } from "@/lib/admin-auth";
 import { revalidatePublicSite } from "@/lib/revalidate";
 
 /**
@@ -27,6 +28,7 @@ function readType(formData: FormData): TrashEntityType | null {
 }
 
 export async function restoreTrashAction(formData: FormData): Promise<void> {
+  await requireUser();
   const type = readType(formData);
   const id = String(formData.get("id") ?? "");
   let failure: string | null = null;
@@ -47,6 +49,7 @@ export async function restoreTrashAction(formData: FormData): Promise<void> {
 }
 
 export async function deleteTrashAction(formData: FormData): Promise<void> {
+  await requireUser();
   const type = readType(formData);
   const id = String(formData.get("id") ?? "");
   let failure: string | null = null;

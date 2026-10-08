@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { requireUser } from "@/lib/admin-auth";
 import { trashMediaAsset, updateMediaAsset } from "@/lib/content-admin";
 import { uploadMedia } from "@/lib/media-upload";
 import { revalidatePublicSite } from "@/lib/revalidate";
@@ -25,6 +26,7 @@ export async function uploadMediaAction(
   _prev: UploadState,
   formData: FormData
 ): Promise<UploadState> {
+  await requireUser();
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
     return { error: "Pilih berkas foto atau video dulu." };
@@ -64,6 +66,7 @@ export async function uploadMediaAction(
 }
 
 export async function updateMediaAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = String(formData.get("id") ?? "");
   let failure: string | null = null;
   try {
@@ -92,6 +95,7 @@ export async function updateMediaAction(formData: FormData): Promise<void> {
 }
 
 export async function trashMediaAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = String(formData.get("id") ?? "");
   let failure: string | null = null;
   try {

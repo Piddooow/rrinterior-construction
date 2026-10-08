@@ -10,6 +10,7 @@ import {
   updateService,
   type ServiceInput,
 } from "@/lib/content-admin";
+import { requireUser } from "@/lib/admin-auth";
 import { revalidatePublicSite } from "@/lib/revalidate";
 
 /**
@@ -53,6 +54,7 @@ export async function saveServiceAction(
   _prev: SaveServiceState,
   formData: FormData
 ): Promise<SaveServiceState> {
+  await requireUser();
   const id = field(formData, "id");
   const isNew = !id || id === "new";
   let targetId = id ?? "new";
@@ -69,6 +71,7 @@ export async function saveServiceAction(
 }
 
 export async function publishServiceAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id");
   let targetId = id ?? "new";
   let failure: string | null = null;
@@ -87,6 +90,7 @@ export async function publishServiceAction(formData: FormData): Promise<void> {
 }
 
 export async function unpublishServiceAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {
@@ -103,6 +107,7 @@ export async function unpublishServiceAction(formData: FormData): Promise<void> 
 }
 
 export async function trashServiceAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {
@@ -119,6 +124,7 @@ export async function trashServiceAction(formData: FormData): Promise<void> {
 }
 
 export async function restoreServiceAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {

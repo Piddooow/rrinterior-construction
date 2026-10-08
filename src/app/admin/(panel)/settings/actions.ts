@@ -17,6 +17,7 @@ export async function saveSettingsAction(
   _prev: SaveSettingsState,
   formData: FormData
 ): Promise<SaveSettingsState> {
+  await requireUser();
   const rows = await listSettingsForAdmin();
   const failures: string[] = [];
   let changed = 0;

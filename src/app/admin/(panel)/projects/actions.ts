@@ -14,6 +14,7 @@ import {
   type ProjectInput,
   type ProjectMediaSection,
 } from "@/lib/content-admin";
+import { requireUser } from "@/lib/admin-auth";
 import { revalidatePublicSite } from "@/lib/revalidate";
 
 /**
@@ -78,6 +79,7 @@ export async function saveProjectAction(
   _prev: SaveProjectState,
   formData: FormData
 ): Promise<SaveProjectState> {
+  await requireUser();
   const id = field(formData, "id");
   let targetId = id ?? "new";
   let created = false;
@@ -97,6 +99,7 @@ export async function saveProjectAction(
 
 /** Simpan apa pun yang tampak di form, lalu terbitkan. */
 export async function publishProjectAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id");
   let targetId = id ?? "new";
   let failure: string | null = null;
@@ -116,6 +119,7 @@ export async function publishProjectAction(formData: FormData): Promise<void> {
 
 /** Tarik proyek terbit kembali ke draf. */
 export async function unpublishProjectAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {
@@ -133,6 +137,7 @@ export async function unpublishProjectAction(formData: FormData): Promise<void> 
 
 /** Pindahkan proyek ke Trash (aman; bisa dipulihkan). */
 export async function trashProjectAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {
@@ -150,6 +155,7 @@ export async function trashProjectAction(formData: FormData): Promise<void> {
 
 /** Pulihkan proyek dari Trash sebagai draf. */
 export async function restoreProjectAction(formData: FormData): Promise<void> {
+  await requireUser();
   const id = field(formData, "id") ?? "";
   let failure: string | null = null;
   try {
@@ -180,6 +186,7 @@ function readSection(formData: FormData): ProjectMediaSection | null {
 export async function attachProjectMediaAction(
   formData: FormData
 ): Promise<void> {
+  await requireUser();
   const projectId = field(formData, "id") ?? "";
   const mediaId = field(formData, "mediaId") ?? "";
   let failure: string | null = null;
@@ -202,6 +209,7 @@ export async function attachProjectMediaAction(
 export async function detachProjectMediaAction(
   formData: FormData
 ): Promise<void> {
+  await requireUser();
   const projectId = field(formData, "id") ?? "";
   const mediaId = field(formData, "mediaId") ?? "";
   let failure: string | null = null;
@@ -223,6 +231,7 @@ export async function detachProjectMediaAction(
 export async function moveProjectMediaAction(
   formData: FormData
 ): Promise<void> {
+  await requireUser();
   const projectId = field(formData, "id") ?? "";
   const mediaId = field(formData, "mediaId") ?? "";
   const direction = field(formData, "direction") === "naik" ? "naik" : "turun";
