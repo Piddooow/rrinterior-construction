@@ -279,7 +279,7 @@ export function PageTransition() {
           transitionDuration: `${phase === "reveal" ? REVEAL_MS - 60 : COVER_MS + 80}ms`,
         }}
       >
-        <BrandLogo eager className="h-16 w-auto sm:h-20" />
+        <BrandLogo eager className="h-20 w-auto sm:h-24" />
       </div>
     </div>
   );

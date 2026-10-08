@@ -146,9 +146,9 @@ export function AdminSidebar({
         <img
           src="/brand/color-rr-logo-coklat.webp"
           alt="RR Design & Build"
-          width={304}
-          height={315}
-          className="h-10 w-10"
+          width={1024}
+          height={1024}
+          className="h-11 w-11"
         />
         <Link
           href="/"
@@ -187,9 +187,9 @@ export function AdminSidebar({
             <img
               src="/brand/color-rr-logo-coklat.webp"
               alt="RR Design & Build"
-              width={304}
-              height={315}
-              className="h-12 w-12"
+              width={1024}
+              height={1024}
+              className="h-14 w-14"
             />
           </Link>
           <div className="flex items-center gap-1">

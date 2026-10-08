@@ -188,7 +188,7 @@ export default async function ProjectDetailPage({
                 />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-                  <BrandLogo className="h-11 w-11 opacity-50" />
+                  <BrandLogo className="h-14 w-14 opacity-50" />
                   <p className="text-xs leading-relaxed text-ink-3">
                     {dict.work.photoFallback}
                   </p>

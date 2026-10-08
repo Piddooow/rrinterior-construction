@@ -61,7 +61,7 @@ export function ProjectCard({
         />
       ) : (
         <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-          <BrandLogo className="h-10 w-10 opacity-50" />
+          <BrandLogo className="h-12 w-12 opacity-50" />
           <p className="text-xs leading-relaxed text-ink-3">
             {photoFallback}
           </p>

@@ -51,7 +51,7 @@ export default function LocaleError({
           href={`/${locale}`}
           className="focus-ring mb-8 flex min-h-11 items-center gap-3"
         >
-          <BrandLogo eager className="h-10 w-auto" />
+          <BrandLogo eager className="h-12 w-auto" />
         </Link>
         <h1 className="font-display text-balance text-3xl leading-tight sm:text-4xl">
           {t.title}

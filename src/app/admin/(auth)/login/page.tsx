@@ -22,9 +22,9 @@ export default async function AdminLoginPage({
         <img
           src="/brand/color-rr-logo-coklat.webp"
           alt="RR Design & Build"
-          width={304}
-          height={315}
-          className="h-16 w-16"
+          width={1024}
+          height={1024}
+          className="h-20 w-20"
         />
 
         <h1 className="mt-8 font-display text-balance text-3xl leading-tight">

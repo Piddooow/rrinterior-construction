@@ -49,7 +49,7 @@ export function NotFoundContent({ withBrand = false }: { withBrand?: boolean }) 
             href={`/${locale}`}
             className="focus-ring mb-8 flex min-h-11 items-center gap-3"
           >
-            <BrandLogo eager className="h-10 w-auto" />
+            <BrandLogo eager className="h-12 w-auto" />
           </Link>
         ) : null}
 
