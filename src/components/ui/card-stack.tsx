@@ -32,19 +32,22 @@ export type StackCard = {
  * tanpa 20 gambar sekaligus.
  */
 const VISIBLE = 6;
-const SPRING = { type: "spring" as const, stiffness: 260, damping: 20 };
-// Pegas untuk kemiringan 3D dan kembalinya kartu setelah tarikan (R2):
-// nilai target dianimasikan dengan pegas supaya tidak ada sentakan
-// ("patah-patah") saat pointer dilepas atau kartu dikirim ke belakang.
-const TILT_SPRING = { type: "spring" as const, stiffness: 320, damping: 30 };
+// Pegas kemiringan 3D: redaman hampir kritis (ζ≈0.95) — kartu mengikuti
+// pointer dengan licin dan kembali TANPA mantul saat dilepas.
+const TILT_SPRING = { type: "spring" as const, stiffness: 320, damping: 34 };
 // Abaikan klik yang sebenarnya adalah akhir dari tarikan (drag).
 const CLICK_AFTER_DRAG_MS = 160;
-// Durasi kirim ke belakang (R10c): kartu tampil meluncur/mengecil ke slot
-// belakang dulu, baru urutan deck di-commit saat geometrinya sudah sama —
-// tidak ada kartu yang "hilang seketika". Tuck = momen lapisan kartu turun
-// ke belakang tumpukan (saat kartu sedang di posisi menyamping).
+// Kirim ke belakang (R10c): SATU gerakan kontinu. Kartu teratas mulai
+// meluncur ke slot belakang sejak t=0; kipas menyusul 120ms kemudian dan
+// keduanya SELESAI bersamaan di SEND_MS dengan kurva yang sama. Kartu
+// mendarat dengan geometri slot tujuan (termasuk kemiringan acak kartu
+// penggantinya) sehingga commit urutan terjadi tanpa perubahan apa pun
+// yang terlihat — mulus, tanpa pegas mantul. Tuck = momen lapisan kartu
+// turun ke bawah tumpukan (saat sudah hampir tiba di slotnya).
 const SEND_MS = 560;
-const SEND_TUCK_MS = 280;
+const SEND_FAN_DELAY_MS = 120;
+const SEND_FAN_MS = SEND_MS - SEND_FAN_DELAY_MS;
+const SEND_TUCK_MS = 240;
 const SEND_EASE = [0.22, 1, 0.36, 1] as const;
 
 /** Rotasi "acak" yang deterministik per kartu (stabil lintas render/SSR). */
@@ -60,10 +63,12 @@ function jitter(seed: string, randomRotation: boolean) {
 function StackLayer({
   item,
   depth,
-  backDepth,
+  landingDepth,
+  landingJitter,
   isTop,
   sending,
-  sendingPhase,
+  phase,
+  shiftNow,
   reduceMotion,
   randomRotation,
   sensitivity,
@@ -74,10 +79,17 @@ function StackLayer({
 }: {
   item: StackCard;
   depth: number;
-  backDepth: number;
+  /** Kedalaman slot belakang tempat kartu ini mendarat saat dikirim. */
+  landingDepth: number;
+  /** Kemiringan acak KARTU PENGGANTI di slot itu — supaya kartu yang
+   *  dikirim mendarat persis di geometri kartu yang menggantikannya. */
+  landingJitter: number;
   isTop: boolean;
   sending: boolean;
-  sendingPhase: "carry" | "tuck" | null;
+  phase: "carry" | "shift" | "tuck" | null;
+  /** Kartu lain: true begitu kipas mulai bergeser (fase shift) — targetnya
+   *  sudah kedalaman barunya, jadi commit urutan tidak menggerakkannya lagi. */
+  shiftNow: boolean;
   reduceMotion: boolean;
   randomRotation: boolean;
   sensitivity: number;
@@ -108,21 +120,23 @@ function StackLayer({
     animate(y, 0, TILT_SPRING);
   };
 
-  // Kirim ke belakang (R10c): kartu diberi momentum singkat ke arah tarikan,
-  // lalu meluncur/mengecil/berputar ke slot belakang selama SEND_MS. Urutan
-  // deck baru di-commit oleh induk di ujung animasi.
+  // Kirim ke belakang (R10c): kartu diberi momentum singkat ke arah tarikan
+  // (hanya terasa saat datang dari drag; klik biasa langsung meluncur),
+  // lalu kembali ke tengah selama SEND_MS — satu tarikan napas dengan kipas
+  // yang bergeser, menutup di SEND_MS juga. Urutan deck baru di-commit oleh
+  // induk tepat saat geometrinya sudah sama.
   useEffect(() => {
     if (!sending) return;
     const fromX = x.get();
     const fromY = y.get();
-    animate(x, [fromX, fromX * 1.22, 0], {
+    animate(x, [fromX, fromX * 1.08, 0], {
       duration: SEND_MS / 1000,
-      times: [0, 0.3, 1],
+      times: [0, 0.18, 1],
       ease: SEND_EASE,
     });
-    animate(y, [fromY, fromY * 1.1, 0], {
+    animate(y, [fromY, fromY * 1.06, 0], {
       duration: SEND_MS / 1000,
-      times: [0, 0.3, 1],
+      times: [0, 0.18, 1],
       ease: SEND_EASE,
     });
   }, [sending, x, y]);
@@ -193,11 +207,16 @@ function StackLayer({
   };
 
   const interactive = isTop && !sending;
+  // Kartu lain sudah menuju kedalaman barunya sejak fase shift, jadi saat
+  // commit urutan tidak ada satu pun kartu yang berubah target — tanpa lompatan.
+  const targetDepth = sending ? landingDepth : shiftNow ? depth - 1 : depth;
+  // Kartu yang dikirim mendarat di geometri slot tujuan (kemiringan acak
+  // kartu pengganti), bukan kemiringan dirinya — pertukaran commit tak terlihat.
   const targetRotateZ = sending
-    ? backDepth * 4 + jitter(item.src, randomRotation)
-    : depth * 4 + jitter(item.src, randomRotation);
-  const targetScale = sending ? 1 - backDepth * 0.06 : 1 - depth * 0.06;
-  const zIndex = sending && sendingPhase === "tuck" ? 100 - backDepth : 100 - depth;
+    ? landingDepth * 4 + landingJitter
+    : targetDepth * 4 + jitter(item.src, randomRotation);
+  const targetScale = 1 - targetDepth * 0.06;
+  const zIndex = sending && phase === "tuck" ? 100 - landingDepth : 100 - depth;
 
   return (
     <motion.div
@@ -238,8 +257,8 @@ function StackLayer({
           reduceMotion
             ? { duration: 0 }
             : sending
-              ? { duration: (SEND_MS - 60) / 1000, ease: SEND_EASE }
-              : SPRING
+              ? { duration: SEND_MS / 1000, ease: SEND_EASE }
+              : { duration: SEND_FAN_MS / 1000, ease: SEND_EASE }
         }
       >
         <Image
@@ -274,10 +293,11 @@ function StackLayer({
  * `touch-action: pan-y` sehingga gulir vertikal halaman tetap natural dan
  * tarikan vertikal selalu kembali; tap dan keyboard tetap bekerja.
  *
- * Sejak R10c kirim ke belakang dianimasikan bertahap (momentum singkat →
- * meluncur ke slot belakang → commit saat geometri sudah sama), jadi kartu
- * tidak pernah "hilang seketika"; ukuran jendela kartu juga sedikit
- * dikecilkan (332px). Reduced-motion tetap instan.
+ * Sejak R10c kirim ke belakang dianimasikan (momentum singkat → meluncur ke
+ * slot belakang), lalu disempurnakan: kartu dan seluruh kipas bergerak
+ * BARENGAN dalam satu kurva, kartu mendarat di geometri slot tujuan, dan
+ * commit urutan terjadi tanpa perubahan yang terlihat — mulus tanpa pegas
+ * mantul. Reduced-motion tetap instan.
  */
 export function CardStack({
   items,
@@ -299,7 +319,7 @@ export function CardStack({
   const [stack, setStack] = useState<number[]>(() => items.map((_, i) => i));
   const [sending, setSending] = useState<{
     index: number;
-    phase: "carry" | "tuck";
+    phase: "carry" | "shift" | "tuck";
   } | null>(null);
   const sendingRef = useRef<number | null>(null);
   const sendTimers = useRef<number[]>([]);
@@ -332,6 +352,7 @@ export function CardStack({
       setSending({ index: itemIndex, phase: "carry" });
       clearSendTimers();
       sendTimers.current.push(
+        window.setTimeout(() => setSending({ index: itemIndex, phase: "shift" }), SEND_FAN_DELAY_MS),
         window.setTimeout(() => setSending({ index: itemIndex, phase: "tuck" }), SEND_TUCK_MS),
         window.setTimeout(() => {
           sendingRef.current = null;
@@ -353,6 +374,17 @@ export function CardStack({
     ? `${topItem.title} — ${topItem.role}`
     : topItem.title;
 
+  // Slot belakang tempat kartu yang dikirim mendarat. Saat arsip masih punya
+  // antrean (lebih dari jendela tampak), kartu penggantinya sudah diketahui:
+  // kemiringan slot dipakai dari kartu itu supaya pergantian commit mulus.
+  const landingDepth = Math.min(VISIBLE - 1, items.length - 1);
+  const mountingItem =
+    items.length > VISIBLE ? items[stack[stack.length - 1 - VISIBLE]] : null;
+  const landingJitter = jitter(
+    (mountingItem ?? items[sending?.index ?? topIndex]).src,
+    randomRotation
+  );
+
   return (
     <div className={cn("flex w-full max-w-[min(70vw,300px)] flex-col gap-3", className)}>
       <div
@@ -365,15 +397,20 @@ export function CardStack({
           if (depth < 0 || depth >= VISIBLE) return null;
           const isTop = depth === 0;
           const isSending = sending?.index === i;
+          // Sejak fase shift, kartu lain sudah menuju kedalaman barunya —
+          // commit urutan tinggal menyamakan state, tanpa gerakan tambahan.
+          const shiftNow = sending !== null && !isSending && sending.phase !== "carry";
           return (
             <StackLayer
               key={item.src}
               item={item}
               depth={depth}
-              backDepth={VISIBLE - 1}
+              landingDepth={landingDepth}
+              landingJitter={landingJitter}
               isTop={isTop}
               sending={isSending}
-              sendingPhase={isSending ? (sending?.phase ?? null) : null}
+              phase={isSending ? (sending?.phase ?? null) : null}
+              shiftNow={shiftNow}
               reduceMotion={reduceMotion}
               randomRotation={randomRotation}
               sensitivity={sensitivity}
